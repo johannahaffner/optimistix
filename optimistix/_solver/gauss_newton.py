@@ -171,9 +171,7 @@ def _make_f_info(
     jac: Literal["fwd", "bwd"],
 ) -> tuple[FunctionInfo.ResidualJac, Aux]:
     if jac == "fwd":
-        f_eval, lin_fn, aux_eval = jax.linearize(
-            lambda _y: fn(_y, args), y, has_aux=True
-        )
+        f_eval, lin_fn, aux_eval = jax.linearize(fn, *(y, args), has_aux=True)
         jac_eval = lx.FunctionLinearOperator(lin_fn, jax.eval_shape(lambda: y), tags)
     elif jac == "bwd":
         # Materialise the Jacobian in this case.
