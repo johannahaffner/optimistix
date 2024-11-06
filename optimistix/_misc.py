@@ -71,14 +71,28 @@ def tree_where(
 
 # TODO(jhaffner): This needs a test. In case of Nelder-Mead, there also needs to be a
 # test to ensure that this is correctly mapped over the simplex.
+# TODO(jhaffner): PyTree shape checking should be done in iterative_solve. Potentially
+# this could/should also be done in the solvers, for interactive usage.
 def tree_clip(
     pytree: PyTree[ArrayLike],
-    lower: PyTree[ArrayLike],
-    upper: PyTree[ArrayLike],
+    lower: Union[PyTree[ArrayLike], None],
+    upper: Union[PyTree[ArrayLike], None],
 ) -> PyTree[Array]:
     """Clip the values of the pytree to match [lower, upper]."""
-    assert jax.tree.structure(lower) == jax.tree.structure(upper)
-    assert jax.tree.structure(lower) == jax.tree.structure(pytree)
+    if lower is None:
+        lower = tree_full_like(pytree, -jnp.inf)
+    else:
+        assert jax.tree_structure(lower) == jax.tree_structure(pytree), (
+            "The Pytree specifying the lower bound must have the same structure as the "
+            "Pytree to be clipped."
+        )
+    if upper is None:
+        upper = tree_full_like(pytree, jnp.inf)
+    else:
+        assert jax.tree_structure(upper) == jax.tree_structure(pytree), (
+            "The Pytree specifying the upper bound must have the same structure as the "
+            "Pytree to be clipped."
+        )
 
     clip = lambda x, a, b: jnp.clip(x, a, b)
     return jax.tree.map(clip, pytree, lower, upper)

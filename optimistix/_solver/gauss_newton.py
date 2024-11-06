@@ -268,6 +268,8 @@ class AbstractGaussNewton(
         # feasibility check for "within-bounds" should be done in iterative_solve, not
         # here, since this would affect all solvers if we decide to allow for a clipping
         # option.
+        # TODO(jhaffner): no defaults set here - this will change if this is upstreamed.
+        # (Although defaults would best be handled in iterative_solve.)
         lower = options.get("lower", None)
         upper = options.get("upper", None)
 
