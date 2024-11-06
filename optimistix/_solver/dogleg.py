@@ -233,6 +233,10 @@ class Dogleg(AbstractGaussNewton[Y, Out, Aux], strict=True):
         Jacobian. Can be either `"fwd"` or `"bwd"`. Defaults to `"fwd"`, which is
         usually more efficient. Changing this can be useful when the target function has
         a `jax.custom_vjp`, and so does not support forward-mode autodifferentiation.
+    - `lower`: Lower bounds for the solution. If provided, the solution will be clipped
+        to these bounds.
+    - `upper`: Upper bounds for the solution. If provided, the solution will be clipped
+        to these bounds.
     """
 
     rtol: float

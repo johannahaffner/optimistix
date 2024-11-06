@@ -69,6 +69,21 @@ def tree_where(
     return jtu.tree_map(keep, true, false)
 
 
+# TODO(jhaffner): This needs a test. In case of Nelder-Mead, there also needs to be a
+# test to ensure that this is correctly mapped over the simplex.
+def tree_clip(
+    pytree: PyTree[ArrayLike],
+    lower: PyTree[ArrayLike],
+    upper: PyTree[ArrayLike],
+) -> PyTree[Array]:
+    """Clip the values of the pytree to match [lower, upper]."""
+    assert jax.tree.structure(lower) == jax.tree.structure(upper)
+    assert jax.tree.structure(lower) == jax.tree.structure(pytree)
+
+    clip = lambda x, a, b: jnp.clip(x, a, b)
+    return jax.tree.map(clip, pytree, lower, upper)
+
+
 def resolve_rcond(rcond, n, m, dtype):
     if rcond is None:
         return jnp.finfo(dtype).eps * max(n, m)

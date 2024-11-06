@@ -16,6 +16,7 @@ from .._misc import (
     filter_cond,
     max_norm,
     sum_squares,
+    tree_clip,
     tree_full_like,
     verbose_print,
 )
@@ -212,6 +213,10 @@ class AbstractGaussNewton(
         Jacobian. Can be either `"fwd"` or `"bwd"`. Defaults to `"fwd"`, which is
         usually more efficient. Changing this can be useful when the target function has
         a `jax.custom_vjp`, and so does not support forward-mode autodifferentiation.
+    - `lower`: Lower bounds for the solution. If provided, the solution will be clipped
+        to these bounds.
+    - `upper`: Upper bounds for the solution. If provided, the solution will be clipped
+        to these bounds.
     """
 
     rtol: AbstractVar[float]
@@ -259,6 +264,13 @@ class AbstractGaussNewton(
         state: _GaussNewtonState,
         tags: frozenset[object],
     ) -> tuple[Y, _GaussNewtonState, Aux]:
+        # TODO(jhaffner): I currently assume that the initial y is feasible. However, a
+        # feasibility check for "within-bounds" should be done in iterative_solve, not
+        # here, since this would affect all solvers if we decide to allow for a clipping
+        # option.
+        lower = options.get("lower", None)
+        upper = options.get("upper", None)
+
         jac = options.get("jac", "fwd")
         f_eval_info, aux_eval = _make_f_info(fn, state.y_eval, args, tags, jac)
         # We have a jaxpr in `f_info.jac`, which are compared by identity. Here we
@@ -338,6 +350,8 @@ class AbstractGaussNewton(
 
         y_descent, descent_result = self.descent.step(step_size, descent_state)
         y_eval = (y**ω + y_descent**ω).ω
+        y_eval = tree_clip(y_eval, lower, upper)  # Clip any step to bounds
+
         result = RESULTS.where(
             search_result == RESULTS.successful, descent_result, search_result
         )
@@ -394,6 +408,10 @@ class GaussNewton(AbstractGaussNewton[Y, Out, Aux], strict=True):
         Jacobian. Can be either `"fwd"` or `"bwd"`. Defaults to `"fwd"`, which is
         usually more efficient. Changing this can be useful when the target function has
         a `jax.custom_vjp`, and so does not support forward-mode autodifferentiation.
+    - `lower`: Lower bounds for the solution. If provided, the solution will be clipped
+        to these bounds.
+    - `upper`: Upper bounds for the solution. If provided, the solution will be clipped
+        to these bounds.
     """
 
     rtol: float
