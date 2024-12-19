@@ -264,12 +264,7 @@ class AbstractGaussNewton(
         state: _GaussNewtonState,
         tags: frozenset[object],
     ) -> tuple[Y, _GaussNewtonState, Aux]:
-        # TODO(jhaffner): I currently assume that the initial y is feasible. However, a
-        # feasibility check for "within-bounds" should be done in iterative_solve, not
-        # here, since this would affect all solvers if we decide to allow for a clipping
-        # option.
-        # TODO(jhaffner): no defaults set here - this will change if this is upstreamed.
-        # (Although defaults would best be handled in iterative_solve.)
+        # TODO(jhaffner): I currently assume that the initial y is feasible.
         lower = options.get("lower", None)
         upper = options.get("upper", None)
 
