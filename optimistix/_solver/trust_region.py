@@ -76,7 +76,7 @@ class _AbstractTrustRegion(
 
     def init(self, y: Y, f_info_struct: _FnInfo) -> _TrustRegionState:
         del f_info_struct
-        return _TrustRegionState(step_size=jnp.array(0.1))
+        return _TrustRegionState(step_size=jnp.array(1.0))
 
     def step(
         self,
