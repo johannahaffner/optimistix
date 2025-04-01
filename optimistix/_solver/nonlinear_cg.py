@@ -164,18 +164,27 @@ class NonlinearCGDescent(
 NonlinearCGDescent.__init__.__doc__ = """**Arguments:**
 
 - `method`: A callable `method(vector, vector_prev, diff_prev)` describing how to
-    calculate the beta parameter of nonlinear CG. Each of these inputs has the meaning
-    described above. The "beta parameter" is the sake as can be described as e.g. the
-    β_n value
-    [on Wikipedia](https://en.wikipedia.org/wiki/Nonlinear_conjugate_gradient_method).
-    In practice Optimistix includes four built-in methods:
+    calculate the beta parameter of nonlinear CG. Nonlinear CG uses the previous search
+    direction, scaled by beta, and subtracts the gradient to find the next search 
+    direction. This parameter, in the nonlinear case, is the same as the parameter β_n
+    described e.g. [on Wikipedia](https://en.wikipedia.org/wiki/Nonlinear_conjugate_gradient_method)
+    for the linear case.
+    Defaults to `polak_ribiere`. Optimistix includes four built-in methods:
     [`optimistix.polak_ribiere`][], [`optimistix.fletcher_reeves`][],
     [`optimistix.hestenes_stiefel`][], and [`optimistix.dai_yuan`][].
 """
 
 
 class NonlinearCG(AbstractGradientDescent[Y, Aux], strict=True):
-    """The nonlinear conjugate gradient method."""
+    """The nonlinear conjugate gradient method.
+
+    Supports the following `options`:
+
+    - `autodiff_mode`: whether to use forward- or reverse-mode autodifferentiation to
+        compute the gradient. Can be either `"fwd"` or `"bwd"`. Defaults to `"bwd"`,
+        which is usually more efficient. Changing this can be useful when the target
+        function does not support reverse-mode automatic differentiation.
+    """
 
     rtol: float
     atol: float

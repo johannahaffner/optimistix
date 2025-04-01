@@ -1,3 +1,4 @@
+import inspect
 from collections.abc import Callable
 from typing import Any, Literal, overload, TypeVar, Union
 
@@ -11,15 +12,36 @@ import jax.tree_util as jtu
 from equinox.internal import ω
 from jaxtyping import Array, ArrayLike, Bool, PyTree, Scalar
 from lineax.internal import (
-    default_floating_dtype as default_floating_dtype,
-    max_norm as max_norm,
-    rms_norm as rms_norm,
-    sum_squares as sum_squares,
-    tree_dot as tree_dot,
-    two_norm as two_norm,
+    default_floating_dtype as _default_floating_dtype,
+    max_norm as _max_norm,
+    rms_norm as _rms_norm,
+    sum_squares as _sum_squares,
+    tree_dot as _tree_dot,
+    two_norm as _two_norm,
 )
 
 from ._custom_types import Y
+
+
+# Make the wrapped function a genuine member of this module.
+def _wrap(fn):
+    # Not using `functools.wraps` as our docgen will chase that.
+    def wrapped_fn(*args, **kwargs):
+        return fn(*args, **kwargs)
+
+    wrapped_fn.__signature__ = inspect.signature(fn)
+    wrapped_fn.__name__ = wrapped_fn.__qualname__ = fn.__name__
+    wrapped_fn.__module__ = __name__
+    wrapped_fn.__doc__ = fn.__doc__
+    return wrapped_fn
+
+
+default_floating_dtype = _wrap(_default_floating_dtype)
+max_norm = _wrap(_max_norm)
+rms_norm = _wrap(_rms_norm)
+sum_squares = _wrap(_sum_squares)
+tree_dot = _wrap(_tree_dot)
+two_norm = _wrap(_two_norm)
 
 
 @overload
@@ -130,26 +152,20 @@ class OutAsArray(eqx.Module, strict=True):
         return out, aux
 
 
-def jacobian(fn, in_size, out_size, has_aux=False):
-    """Compute the Jacobian of a function using forward or backward mode AD.
-
-    `jacobian` chooses between forward and backwards autodiff depending on the input
-    and output dimension of `fn`, as specified in `in_size` and `out_size`.
-    """
-
-    # Heuristic for which is better in each case
-    # These could probably be tuned a lot more.
-    if (in_size < 100) or (in_size <= 1.5 * out_size):
-        return jax.jacfwd(fn, has_aux=has_aux)
-    else:
-        return jax.jacrev(fn, has_aux=has_aux)
-
-
-def lin_to_grad(lin_fn, *primals):
-    # Only the shape and dtype of primals is evaluated, not the value itself. We convert
-    # to grad after linearising to avoid recompilation. (1.0 is a scaling factor.)
+def lin_to_grad(lin_fn, y_eval, autodiff_mode=None):
+    # Only the shape and dtype of y_eval is evaluated, not the value itself. (lin_fn
+    # was linearized at y_eval, and the values were stored.)
+    # We convert to grad after linearising for efficiency:
     # https://github.com/patrick-kidger/optimistix/issues/89#issuecomment-2447669714
-    return jax.linear_transpose(lin_fn, *primals)(1.0)
+    if autodiff_mode == "bwd":
+        (grad,) = jax.linear_transpose(lin_fn, y_eval)(1.0)  # (1.0 is a scaling factor)
+        return grad
+    if autodiff_mode == "fwd":
+        return jax.jacfwd(lin_fn)(y_eval)
+    else:
+        raise ValueError(
+            "Only `autodiff_mode='fwd'` or `autodiff_mode='bwd'` are valid."
+        )
 
 
 def _asarray(dtype, x):

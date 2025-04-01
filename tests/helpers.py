@@ -2,6 +2,7 @@ import functools as ft
 from collections.abc import Callable
 from typing import Any, TypeVar
 
+import diffrax as dfx
 import equinox as eqx
 import equinox.internal as eqxi
 import jax
@@ -147,18 +148,6 @@ class BFGSDogleg(optx.AbstractBFGS):
     verbose: frozenset[str] = frozenset()
 
 
-class BFGSBacktracking(optx.AbstractBFGS):
-    """Standard BFGS + backtracking line search."""
-
-    rtol: float
-    atol: float
-    norm: Callable = optx.max_norm
-    use_inverse: bool = False
-    search: optx.AbstractSearch = optx.BacktrackingArmijo()
-    descent: optx.AbstractDescent = optx.NewtonDescent()
-    verbose: frozenset[str] = frozenset()
-
-
 class BFGSTrustRegion(optx.AbstractBFGS):
     """Standard BFGS + classical trust region update."""
 
@@ -190,8 +179,6 @@ minimisers = (
     BFGSIndirectDampedNewton(rtol, atol),
     # Tighter tolerance needed to have bfgs_dogleg pass the JVP test.
     BFGSDogleg(1e-10, 1e-10),
-    BFGSBacktracking(rtol, atol, use_inverse=False),
-    BFGSBacktracking(rtol, atol, use_inverse=True),
     BFGSTrustRegion(rtol, atol, use_inverse=False),
     BFGSTrustRegion(rtol, atol, use_inverse=True),
     optx.GradientDescent(1.5e-2, rtol, atol),
@@ -786,3 +773,37 @@ class PiggybackAdjoint(optx.AbstractAdjoint):
         del rewrite_fn, tags
         while_loop = ft.partial(eqxi.while_loop, kind="lax")
         return primal_fn(inputs + (while_loop,))
+
+
+def forward_only_ode(k, args):
+    # Test minimisers for use with dfx.ForwardMode. This test checks if the forward
+    # branch is entered as expected and that a (trivial) result is found.
+    # We're checking if trickier problems are solved correctly in the other tests.
+    del args
+    dy = lambda t, y, k: -k * y
+
+    def solve(_k):
+        return dfx.diffeqsolve(
+            dfx.ODETerm(dy),
+            dfx.Tsit5(),
+            0.0,
+            10.0,
+            0.1,
+            10.0,
+            args=_k,
+            adjoint=dfx.ForwardMode(),
+        )
+
+    data = jnp.asarray(solve(jnp.array(0.5)).ys)  # seems to make type checkers happy
+    fit = jnp.asarray(solve(k).ys)
+    return jnp.sum((data - fit) ** 2)
+
+
+forward_only_fn_init_options_expected = (
+    (
+        forward_only_ode,
+        jnp.array(0.6),
+        dict(autodiff_mode="fwd"),
+        jnp.array(0.5),
+    ),
+)
