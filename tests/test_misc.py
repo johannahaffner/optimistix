@@ -8,6 +8,7 @@ from .helpers import (
     tree_where__pred_true_false_expected,
     trees_to_clip,
     y_bounds_step_offset_expected,
+    y_step_lower_upper_expected,
 )
 
 
@@ -51,3 +52,9 @@ def test_feasible_step_length(y, bounds, step, offset, expected_result):
     assert tree_allclose(result, expected_result)
     assert optx_misc.tree_min(result) >= 0.0
     assert optx_misc.tree_max(result) <= 1.0
+
+
+@pytest.mark.parametrize("y, step, lower, upper, expected", y_step_lower_upper_expected)
+def test_reflected_step(y, step, lower, upper, expected):
+    reflected_step = optx_misc.reflected_step(y, step, lower, upper)
+    assert tree_allclose(reflected_step, expected)

@@ -198,6 +198,50 @@ def feasible_step_length(
     return max_steps
 
 
+def reflected_step(current, step, lower, upper):
+    """Compute a reflected step, bouncing off of the boundary of the feasible region.
+    Starting from a given position, the distance to the boundary is computed as a
+    fraction of a full step, and the feasible fraction of the step is taken before
+    the remainder of the step is reflected at the boundary. The process is repeated
+    until the remainder of the reflected step is reduced to zero. At this point, the
+    cumulative piecewise length of the reflected step is equal to the length of the
+    full proposed step. If any reflection took place, then the norm of the reflected
+    step will be smaller than the original step.
+    """
+
+    def keep_going(carry):
+        _, next_step, _ = carry
+        stop = jnp.all(next_step == 0.0)
+        return jnp.invert(stop)
+
+    def body_fn(carry):
+        current, step, step_sizes = carry
+
+        step_size = jnp.min(step_sizes)
+        intersect = jnp.argmin(step_sizes)
+
+        intercept = current + step_size * step
+        remaining = (1 - step_size) * step
+        reflected = jnp.ones_like(step).at[intersect].set(-1)
+        next_step = remaining * reflected
+
+        new_step_sizes = feasible_step_length(intercept, next_step, lower, upper)
+
+        return intercept, next_step, new_step_sizes
+
+    step_, unflatten = jfu.ravel_pytree(step)  # Flattening to use argmin
+    current_, _ = jfu.ravel_pytree(current)
+    lower_, _ = jfu.ravel_pytree(lower)
+    upper_, _ = jfu.ravel_pytree(upper)
+
+    step_sizes = feasible_step_length(current_, step_, lower_, upper_)
+    init_carry = current_, step_, step_sizes
+    final_value, _, _ = eqxi.while_loop(keep_going, body_fn, init_carry, kind="lax")
+
+    reflected_step = final_value - current_
+    return unflatten(reflected_step)
+
+
 def resolve_rcond(rcond, n, m, dtype):
     if rcond is None:
         return jnp.finfo(dtype).eps * max(n, m)

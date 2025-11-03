@@ -1134,3 +1134,15 @@ y_bounds_step_offset_expected = (
         jnp.array([0.5, 0.5]),
     ),
 )
+
+
+y_step_lower_upper_expected = (
+    (
+        jnp.array([0.5, -0.5]),
+        jnp.array([2.0, 2.0]),
+        jnp.array([-1.0, -1.0]),
+        jnp.array([1.0, 1.0]),
+        jnp.array([-1.0, 1.0]),
+    ),
+    # What happens if we were to run straight into a corner?
+)
